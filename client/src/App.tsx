@@ -35,9 +35,20 @@ import TransportSuccess from "@/pages/transport/transport-success";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  if (isLoading) {
+    return (
+      <div className="max-w-md mx-auto bg-white min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
           <Route path="/onboarding" component={Onboarding} />
@@ -46,9 +57,7 @@ function Router() {
       ) : (
         <>
           {/* Default redirect to home for authenticated users */}
-          <Route path="/">
-            <Redirect to="/home" />
-          </Route>
+          <Route path="/" component={() => <Redirect to="/home" />} />
           
           {/* Main pages */}
           <Route path="/home" component={Home} />
@@ -73,7 +82,7 @@ function Router() {
           <Route path="/transport/contact" component={TransportContact} />
           <Route path="/transport/success" component={TransportSuccess} />
           
-          {/* Fallback to 404 */}
+          {/* Fallback to 404 for unknown routes */}
           <Route component={NotFound} />
         </>
       )}
