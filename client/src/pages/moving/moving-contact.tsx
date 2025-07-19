@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -6,11 +7,72 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Phone, Mail } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Loader2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MovingContact() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    preferredContact: "phone"
+  });
+
+  const createBooking = useMutation({
+    mutationFn: async (bookingData: any) => {
+      return await apiRequest("/api/bookings", "POST", bookingData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      setLocation("/moving/success");
+    },
+    onError: (error) => {
+      console.error("Error creating booking:", error);
+      toast({
+        title: "Booking Failed",
+        description: "Unable to create your booking. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!formData.fullName || !formData.email || !formData.phone) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const bookingData = {
+      serviceType: "moving",
+      status: "pending",
+      data: {
+        rooms: ["living_room", "kitchen", "bedroom"], // This would come from previous steps
+        floors: ["ground_floor"],
+        pickupAddress: "Sample pickup address",
+        destinationAddress: "Sample destination address"
+      },
+      contactInfo: {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        preferredContact: formData.preferredContact
+      },
+      scheduledDate: new Date().toISOString()
+    };
+
+    createBooking.mutate(bookingData);
+  };
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen relative overflow-hidden">
@@ -44,6 +106,8 @@ export default function MovingContact() {
             <Input 
               type="text" 
               placeholder="Enter your full name" 
+              value={formData.fullName}
+              onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
               className="p-4 rounded-2xl border-slate-200 focus:border-primary"
             />
           </div>
@@ -56,6 +120,8 @@ export default function MovingContact() {
             <Input 
               type="email" 
               placeholder="Enter your email" 
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               className="p-4 rounded-2xl border-slate-200 focus:border-primary"
             />
           </div>
@@ -68,6 +134,8 @@ export default function MovingContact() {
             <Input 
               type="tel" 
               placeholder="Enter your phone number" 
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               className="p-4 rounded-2xl border-slate-200 focus:border-primary"
             />
           </div>
@@ -77,7 +145,11 @@ export default function MovingContact() {
             <Label className="text-sm font-medium text-slate-800 mb-2">
               {t("preferred_contact")}
             </Label>
-            <RadioGroup defaultValue="phone" className="grid grid-cols-2 gap-3">
+            <RadioGroup 
+              value={formData.preferredContact} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, preferredContact: value }))}
+              className="grid grid-cols-2 gap-3"
+            >
               <div>
                 <Label 
                   htmlFor="phone"
@@ -103,10 +175,18 @@ export default function MovingContact() {
 
           {/* Submit Button */}
           <Button 
-            onClick={() => setLocation("/moving/success")}
+            onClick={handleSubmit}
+            disabled={createBooking.isPending}
             className="w-full bg-primary text-white py-4 rounded-2xl font-semibold shadow-lg hover:bg-primary/90 transition-all h-auto"
           >
-            {t("submit_request")}
+            {createBooking.isPending ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Creating booking...
+              </>
+            ) : (
+              t("submit_request")
+            )}
           </Button>
 
           {/* Summary Card */}

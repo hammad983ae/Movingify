@@ -1,15 +1,31 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertBookingSchema, insertMovingRoomSchema, insertDisposalItemSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // Create booking
-  app.post("/api/bookings", async (req, res) => {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const bookingData = insertBookingSchema.parse(req.body);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+  
+  // Create booking (protected)
+  app.post("/api/bookings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const bookingData = insertBookingSchema.parse({ ...req.body, userId });
       const booking = await storage.createBooking(bookingData);
       res.json(booking);
     } catch (error) {
@@ -18,8 +34,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get booking by ID
-  app.get("/api/bookings/:id", async (req, res) => {
+  // Get booking by ID (protected)
+  app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const booking = await storage.getBooking(id);
@@ -33,10 +49,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get bookings by user ID
-  app.get("/api/bookings/user/:userId", async (req, res) => {
+  // Get user's bookings (protected)
+  app.get("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.user.claims.sub;
       const bookings = await storage.getBookingsByUserId(userId);
       res.json(bookings);
     } catch (error) {
@@ -45,8 +61,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update booking status
-  app.patch("/api/bookings/:id/status", async (req, res) => {
+  // Update booking status (protected)
+  app.patch("/api/bookings/:id/status", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
@@ -61,8 +77,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create moving room
-  app.post("/api/moving-rooms", async (req, res) => {
+  // Create moving room (protected)
+  app.post("/api/moving-rooms", isAuthenticated, async (req, res) => {
     try {
       const roomData = insertMovingRoomSchema.parse(req.body);
       const room = await storage.createMovingRoom(roomData);
@@ -73,8 +89,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get moving rooms by booking ID
-  app.get("/api/moving-rooms/booking/:bookingId", async (req, res) => {
+  // Get moving rooms by booking ID (protected)
+  app.get("/api/moving-rooms/booking/:bookingId", isAuthenticated, async (req, res) => {
     try {
       const bookingId = parseInt(req.params.bookingId);
       const rooms = await storage.getMovingRoomsByBookingId(bookingId);
@@ -85,8 +101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create disposal item
-  app.post("/api/disposal-items", async (req, res) => {
+  // Create disposal item (protected)
+  app.post("/api/disposal-items", isAuthenticated, async (req, res) => {
     try {
       const itemData = insertDisposalItemSchema.parse(req.body);
       const item = await storage.createDisposalItem(itemData);
@@ -97,8 +113,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get disposal items by booking ID
-  app.get("/api/disposal-items/booking/:bookingId", async (req, res) => {
+  // Get disposal items by booking ID (protected)
+  app.get("/api/disposal-items/booking/:bookingId", isAuthenticated, async (req, res) => {
     try {
       const bookingId = parseInt(req.params.bookingId);
       const items = await storage.getDisposalItemsByBookingId(bookingId);

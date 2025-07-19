@@ -4,9 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/hooks/use-language";
+import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 
 // Import all pages
+import Landing from "@/pages/landing";
 import Onboarding from "@/pages/onboarding";
 import Home from "@/pages/home";
 import Bookings from "@/pages/bookings";
@@ -31,39 +33,50 @@ import TransportContact from "@/pages/transport/transport-contact";
 import TransportSuccess from "@/pages/transport/transport-success";
 
 function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
     <Switch>
-      {/* Default redirect to onboarding */}
-      <Route path="/">
-        <Redirect to="/onboarding" />
-      </Route>
-      
-      {/* Main pages */}
-      <Route path="/onboarding" component={Onboarding} />
-      <Route path="/home" component={Home} />
-      <Route path="/bookings" component={Bookings} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/support" component={Support} />
-      
-      {/* Moving flow */}
-      <Route path="/moving/options" component={MovingOptions} />
-      <Route path="/moving/rooms" component={MovingRooms} />
-      <Route path="/moving/locations" component={MovingLocations} />
-      <Route path="/moving/contact" component={MovingContact} />
-      <Route path="/moving/success" component={MovingSuccess} />
-      
-      {/* Disposal flow */}
-      <Route path="/disposal/items" component={DisposalItems} />
-      <Route path="/disposal/schedule" component={DisposalSchedule} />
-      <Route path="/disposal/success" component={DisposalSuccess} />
-      
-      {/* Transport flow */}
-      <Route path="/transport/locations" component={TransportLocations} />
-      <Route path="/transport/contact" component={TransportContact} />
-      <Route path="/transport/success" component={TransportSuccess} />
-      
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
+      {isLoading || !isAuthenticated ? (
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/onboarding" component={Onboarding} />
+          <Route component={Landing} />
+        </>
+      ) : (
+        <>
+          {/* Default redirect to home for authenticated users */}
+          <Route path="/">
+            <Redirect to="/home" />
+          </Route>
+          
+          {/* Main pages */}
+          <Route path="/home" component={Home} />
+          <Route path="/bookings" component={Bookings} />
+          <Route path="/profile" component={Profile} />
+          <Route path="/support" component={Support} />
+          
+          {/* Moving flow */}
+          <Route path="/moving/options" component={MovingOptions} />
+          <Route path="/moving/rooms" component={MovingRooms} />
+          <Route path="/moving/locations" component={MovingLocations} />
+          <Route path="/moving/contact" component={MovingContact} />
+          <Route path="/moving/success" component={MovingSuccess} />
+          
+          {/* Disposal flow */}
+          <Route path="/disposal/items" component={DisposalItems} />
+          <Route path="/disposal/schedule" component={DisposalSchedule} />
+          <Route path="/disposal/success" component={DisposalSuccess} />
+          
+          {/* Transport flow */}
+          <Route path="/transport/locations" component={TransportLocations} />
+          <Route path="/transport/contact" component={TransportContact} />
+          <Route path="/transport/success" component={TransportSuccess} />
+          
+          {/* Fallback to 404 */}
+          <Route component={NotFound} />
+        </>
+      )}
     </Switch>
   );
 }

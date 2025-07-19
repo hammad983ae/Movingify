@@ -3,10 +3,16 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Settings, MapPin, CreditCard, Bell, LogOut } from "lucide-react";
+import { User, Settings, MapPin, CreditCard, Bell, LogOut, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Profile() {
   const { t } = useLanguage();
+  const { user, isLoading } = useAuth();
+
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
 
   const profileOptions = [
     { icon: User, label: "Personal Information", color: "text-blue-600", bg: "bg-blue-100" },
@@ -33,16 +39,37 @@ export default function Profile() {
         <div className="px-6 mb-8">
           <Card className="shadow-lg">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mr-4">
-                  <User className="h-8 w-8 text-primary" />
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800 mb-1">Alex Johnson</h3>
-                  <p className="text-sm text-slate-600">alex.johnson@email.com</p>
-                  <p className="text-sm text-slate-500">+1 (555) 123-4567</p>
+              ) : (
+                <div className="flex items-center">
+                  {user?.profileImageUrl ? (
+                    <img 
+                      src={user.profileImageUrl} 
+                      alt="Profile" 
+                      className="w-16 h-16 rounded-full object-cover mr-4"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mr-4">
+                      <User className="h-8 w-8 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-slate-800 mb-1">
+                      {user?.firstName && user?.lastName 
+                        ? `${user.firstName} ${user.lastName}` 
+                        : user?.email?.split('@')[0] || 'User'
+                      }
+                    </h3>
+                    <p className="text-sm text-slate-600">{user?.email || 'No email provided'}</p>
+                    <p className="text-sm text-slate-500">
+                      Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : 'Unknown'}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -75,6 +102,7 @@ export default function Profile() {
         <div className="px-6 mt-8">
           <Button 
             variant="outline"
+            onClick={handleLogout}
             className="w-full border-red-200 text-red-600 hover:bg-red-50 py-4 rounded-2xl font-semibold h-auto"
           >
             <LogOut className="h-5 w-5 mr-2" />

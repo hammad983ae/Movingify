@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -5,11 +6,71 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TransportContact() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [formData, setFormData] = useState({
+    fullName: "",
+    phone: "",
+    email: ""
+  });
+
+  const createBooking = useMutation({
+    mutationFn: async (bookingData: any) => {
+      return await apiRequest("/api/bookings", "POST", bookingData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      setLocation("/transport/success");
+    },
+    onError: (error) => {
+      console.error("Error creating booking:", error);
+      toast({
+        title: "Booking Failed",
+        description: "Unable to create your booking. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!formData.fullName || !formData.phone || !formData.email) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const bookingData = {
+      serviceType: "transport",
+      status: "pending",
+      data: {
+        pickupLocation: "Sample pickup location",
+        dropoffLocation: "Sample dropoff location",
+        transportType: "small_car",
+        distance: "12.5 km",
+        estimatedCost: "€25 - €35"
+      },
+      contactInfo: {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email
+      },
+      scheduledDate: new Date().toISOString()
+    };
+
+    createBooking.mutate(bookingData);
+  };
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen relative overflow-hidden">
@@ -42,6 +103,8 @@ export default function TransportContact() {
             <Input 
               type="text" 
               placeholder="Enter your full name" 
+              value={formData.fullName}
+              onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
               className="p-4 rounded-2xl border-slate-200 focus:border-accent"
             />
           </div>
@@ -54,6 +117,8 @@ export default function TransportContact() {
             <Input 
               type="tel" 
               placeholder="Enter your phone number" 
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               className="p-4 rounded-2xl border-slate-200 focus:border-accent"
             />
           </div>
@@ -66,6 +131,8 @@ export default function TransportContact() {
             <Input 
               type="email" 
               placeholder="Enter your email" 
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               className="p-4 rounded-2xl border-slate-200 focus:border-accent"
             />
           </div>
@@ -95,10 +162,18 @@ export default function TransportContact() {
 
           {/* Submit Button */}
           <Button 
-            onClick={() => setLocation("/transport/success")}
+            onClick={handleSubmit}
+            disabled={createBooking.isPending}
             className="w-full bg-accent text-white py-4 rounded-2xl font-semibold shadow-lg hover:bg-accent/90 transition-all h-auto"
           >
-            {t("book_transport")}
+            {createBooking.isPending ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Creating booking...
+              </>
+            ) : (
+              t("book_transport")
+            )}
           </Button>
         </div>
       </div>

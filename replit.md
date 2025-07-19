@@ -20,19 +20,22 @@ The application follows a monorepo structure with separate client and server dir
 - **Styling**: Tailwind CSS with custom design tokens
 - **Internationalization**: Custom translation system supporting English, German, and French
 - **Mobile-First Design**: Responsive design optimized for mobile devices with bottom navigation
+- **Authentication**: Replit Auth integration with conditional routing
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
 - **Database**: PostgreSQL with Neon serverless
 - **ORM**: Drizzle ORM for type-safe database operations
-- **API**: RESTful API structure with proper error handling
+- **Authentication**: Replit OpenID Connect with session management
+- **API**: RESTful API structure with proper error handling and protected routes
 - **Development**: Vite integration for hot module replacement
 
 ## Key Components
 
 ### Database Schema
-- **Users**: Authentication and user management
-- **Bookings**: Central booking entity with service-specific JSON data
+- **Sessions**: Session storage for Replit authentication (mandatory)
+- **Users**: Replit user profiles with OpenID Connect data
+- **Bookings**: Central booking entity with service-specific JSON data and user association
 - **Moving Rooms**: Specific to moving services with floor and room type information
 - **Disposal Items**: Items for disposal services with categories and quantities
 
@@ -50,17 +53,20 @@ The application follows a monorepo structure with separate client and server dir
 - Toast notifications and loading states
 
 ### Storage Implementation
-- **Development**: In-memory storage for rapid prototyping
-- **Production**: PostgreSQL with Drizzle ORM migrations
-- Abstract storage interface for easy switching between implementations
+- **Current**: PostgreSQL with Drizzle ORM for persistent data storage
+- **Authentication**: Replit Auth with database session storage
+- **API Protection**: All booking endpoints require authentication
+- Database migrations managed through Drizzle push commands
 
 ## Data Flow
 
-1. **Client Requests**: React components make API calls through TanStack Query
-2. **API Layer**: Express routes handle business logic and validation
-3. **Database Layer**: Drizzle ORM manages database operations with type safety
-4. **Response Handling**: Structured JSON responses with proper error handling
-5. **State Management**: Client-side caching and synchronization via TanStack Query
+1. **Authentication**: Users authenticate through Replit OAuth, landing page for unauthenticated users
+2. **Client Requests**: React components make API calls through TanStack Query with auth checking
+3. **API Layer**: Protected Express routes validate authentication and handle business logic
+4. **Database Layer**: Drizzle ORM manages database operations with type safety
+5. **Response Handling**: Structured JSON responses with proper error handling
+6. **State Management**: Client-side caching and synchronization via TanStack Query
+7. **Real Bookings**: Service flows create actual database entries with user association
 
 ## External Dependencies
 

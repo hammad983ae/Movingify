@@ -1,10 +1,10 @@
-import { 
-  users, 
-  bookings, 
-  movingRooms, 
-  disposalItems, 
-  type User, 
-  type InsertUser,
+import {
+  users,
+  bookings,
+  movingRooms,
+  disposalItems,
+  type User,
+  type UpsertUser,
   type Booking,
   type InsertBooking,
   type MovingRoom,
@@ -12,15 +12,19 @@ import {
   type DisposalItem,
   type InsertDisposalItem
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
+// Interface for storage operations
 export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // User operations
+  // (IMPORTANT) these user operations are mandatory for Replit Auth.
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   
   createBooking(booking: InsertBooking): Promise<Booking>;
   getBooking(id: number): Promise<Booking | undefined>;
-  getBookingsByUserId(userId: number): Promise<Booking[]>;
+  getBookingsByUserId(userId: string): Promise<Booking[]>;
   updateBookingStatus(id: number, status: string): Promise<Booking | undefined>;
   
   createMovingRoom(room: InsertMovingRoom): Promise<MovingRoom>;
@@ -30,100 +34,79 @@ export interface IStorage {
   getDisposalItemsByBookingId(bookingId: number): Promise<DisposalItem[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private bookings: Map<number, Booking>;
-  private movingRooms: Map<number, MovingRoom>;
-  private disposalItems: Map<number, DisposalItem>;
-  private currentUserId: number;
-  private currentBookingId: number;
-  private currentMovingRoomId: number;
-  private currentDisposalItemId: number;
+export class DatabaseStorage implements IStorage {
+  // User operations
+  // (IMPORTANT) these user operations are mandatory for Replit Auth.
 
-  constructor() {
-    this.users = new Map();
-    this.bookings = new Map();
-    this.movingRooms = new Map();
-    this.disposalItems = new Map();
-    this.currentUserId = 1;
-    this.currentBookingId = 1;
-    this.currentMovingRoomId = 1;
-    this.currentDisposalItemId = 1;
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return user;
   }
 
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
-    const id = this.currentBookingId++;
-    const booking: Booking = { 
-      ...insertBooking, 
-      id,
-      createdAt: new Date()
-    };
-    this.bookings.set(id, booking);
+    const [booking] = await db
+      .insert(bookings)
+      .values(insertBooking)
+      .returning();
     return booking;
   }
 
   async getBooking(id: number): Promise<Booking | undefined> {
-    return this.bookings.get(id);
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
+    return booking;
   }
 
-  async getBookingsByUserId(userId: number): Promise<Booking[]> {
-    return Array.from(this.bookings.values()).filter(
-      (booking) => booking.userId === userId
-    );
+  async getBookingsByUserId(userId: string): Promise<Booking[]> {
+    return await db.select().from(bookings).where(eq(bookings.userId, userId));
   }
 
   async updateBookingStatus(id: number, status: string): Promise<Booking | undefined> {
-    const booking = this.bookings.get(id);
-    if (booking) {
-      booking.status = status;
-      this.bookings.set(id, booking);
-      return booking;
-    }
-    return undefined;
+    const [booking] = await db
+      .update(bookings)
+      .set({ status })
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking;
   }
 
   async createMovingRoom(insertRoom: InsertMovingRoom): Promise<MovingRoom> {
-    const id = this.currentMovingRoomId++;
-    const room: MovingRoom = { ...insertRoom, id };
-    this.movingRooms.set(id, room);
+    const [room] = await db
+      .insert(movingRooms)
+      .values(insertRoom)
+      .returning();
     return room;
   }
 
   async getMovingRoomsByBookingId(bookingId: number): Promise<MovingRoom[]> {
-    return Array.from(this.movingRooms.values()).filter(
-      (room) => room.bookingId === bookingId
-    );
+    return await db.select().from(movingRooms).where(eq(movingRooms.bookingId, bookingId));
   }
 
   async createDisposalItem(insertItem: InsertDisposalItem): Promise<DisposalItem> {
-    const id = this.currentDisposalItemId++;
-    const item: DisposalItem = { ...insertItem, id };
-    this.disposalItems.set(id, item);
+    const [item] = await db
+      .insert(disposalItems)
+      .values(insertItem)
+      .returning();
     return item;
   }
 
   async getDisposalItemsByBookingId(bookingId: number): Promise<DisposalItem[]> {
-    return Array.from(this.disposalItems.values()).filter(
-      (item) => item.bookingId === bookingId
-    );
+    return await db.select().from(disposalItems).where(eq(disposalItems.bookingId, bookingId));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
